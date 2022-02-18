@@ -193,6 +193,9 @@ class FileOfflineStore(OfflineStore):
                 created_timestamp_column = (
                     feature_view.batch_source.created_timestamp_column
                 )
+                date_partition_column = (
+                    feature_view.batch_source.date_partition_column
+                )
 
                 # Build a list of entity columns to join on (from the right table)
                 join_keys = []
@@ -211,8 +214,20 @@ class FileOfflineStore(OfflineStore):
                 right_entity_key_columns = [c for c in right_entity_key_columns if c]
 
                 all_join_keys = list(set(all_join_keys + join_keys))
+                
+                filters = (
+                    [
+                        (
+                            date_partition_column,
+                            "in",
+                            tuple(entity_df_with_features[date_partition_column].to_list()),
+                        )
+                    ]
+                    if date_partition_column
+                    else None
+                )
 
-                df_to_join = _read_datasource(feature_view.batch_source)
+                df_to_join = _read_datasource(feature_view.batch_source, filters)
 
                 df_to_join, event_timestamp_column = _field_mapping(
                     df_to_join,
@@ -379,18 +394,24 @@ def _get_entity_df_event_timestamp_range(
     )
 
 
-def _read_datasource(data_source) -> dd.DataFrame:
+def _read_datasource(
+    data_source: FileSource, filters: Optional[List[Tuple[str, str, Any]]] = None,
+) -> dd.DataFrame:
     storage_options = (
         {
             "client_kwargs": {
-                "endpoint_url": data_source.file_options.s3_endpoint_override
+                "endpoint_url": data_source.file_options.s3_endpoint_override,
             }
         }
         if data_source.file_options.s3_endpoint_override
         else None
     )
 
-    return dd.read_parquet(data_source.path, storage_options=storage_options,)
+    return dd.read_parquet(
+        data_source.path,
+        storage_options=storage_options,
+        filters=filters,
+    )
 
 
 def _field_mapping(
