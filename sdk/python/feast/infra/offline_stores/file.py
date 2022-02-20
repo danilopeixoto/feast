@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import dask.dataframe as dd
 import pandas as pd
@@ -220,7 +220,7 @@ class FileOfflineStore(OfflineStore):
                         (
                             date_partition_column,
                             "in",
-                            tuple(entity_df_with_features[date_partition_column].to_list()),
+                            tuple(entity_df_with_features[date_partition_column].unique().tolist()),
                         )
                     ]
                     if date_partition_column
